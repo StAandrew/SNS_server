@@ -8,7 +8,7 @@ HOST = "127.0.0.1"
 PORT = 65432
 
 
-def threaded(conn, lock):
+def client_connection_thread(conn, lock):
     continue_loop = True
     while continue_loop:
         data = conn.recv(1024)
@@ -27,12 +27,21 @@ def main():
         s.bind((HOST, PORT))
         print("Socket binded to port")
         s.listen()
-        while True:
-            conn, addr = s.accept()
-            print_lock.acquire()
-            print("Connected to:", addr[0], ":", addr[1])
-            start_new_thread(threaded, (conn, print_lock,))
-
+        continue_loop = True
+        running_threads = []
+        while continue_loop:
+            try:
+                conn, addr = s.accept()
+                print_lock.acquire()
+                print("Connected to:", addr[0], ":", addr[1])
+                new_thread = threading.Thread(target=client_connection_thread, args=(conn, print_lock,), daemon=True)
+                new_thread.start()
+                running_threads.append(new_thread)
+            except KeyboardInterrupt:
+                print("Quitting...")
+                continue_loop = False
+                for thread in running_threads:
+                    thread.join()
 
 if __name__ == "__main__":
     main()
