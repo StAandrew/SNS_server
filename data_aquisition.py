@@ -5,7 +5,7 @@ import pandas as pd
 from config import apple_dir
 
 
-def get_apple_data():
+def get_apple_historical_data():
     """
     Retrieves historical stock data for Apple Inc. from Yahoo Finance.
 
@@ -20,8 +20,8 @@ def get_apple_data():
     # create a Ticker object for Apple Inc.
     apple = yf.Ticker("AAPL")
 
-    # get the historical stock data for Apple Inc.
-    aapl_stock = apple.history(start="2017-03-01", end="2023-03-01", interval="1d")
+    # get the historical stock data for Apple Inc from 5 years ago until today.
+    aapl_stock = apple.history(period="5y", interval="1d")
 
     # reset the index of the DataFrame
     aapl_stock.reset_index(inplace=True)
@@ -30,6 +30,30 @@ def get_apple_data():
     return aapl_stock
 
 
+def get_yesterdays_stock_data():
+    """
+    Retrieves the stock data for Apple Inc. from the previous trading day.
+
+    Args:
+        None
+
+    Returns:
+        pandas.DataFrame:
+            A DataFrame containing the stock data for Apple Inc. from the previous
+            trading day.
+
+    """
+    # create a Ticker object for Apple Inc.
+    apple = yf.Ticker("AAPL")
+
+    # get the stock data for Apple Inc. from the previous trading day
+    aapl_stock = apple.history(period="1d", interval="1d")
+
+    # reset the index of the DataFrame
+    aapl_stock.reset_index(inplace=True)
+
+    # return the DataFrame containing the stock data
+    return aapl_stock
 
 
 def process_apple_stock(apple):
@@ -84,6 +108,32 @@ def save_locally(data, directory):
         print("Data already exists locally at: " + directory)
 
 
-apple = get_apple_data()
-apple = process_apple_stock(apple)
-save_locally(apple, apple_dir)
+# # apple = get_apple_data()
+# # apple = process_apple_stock(apple)
+# # save_locally(apple, apple_dir)
+
+# # Get yesterday's price
+# yesterday_data = get_yesterdays_stock_data()
+# yesterday_data = process_apple_stock(yesterday_data)
+# yesterday_data.set_index("Date", inplace=True)
+
+# yesterday_price = yesterday_data.iloc[:,3:4].values[0][0]
+# dataset = pd.read_csv(apple_dir, index_col=0)
+# dataset.set_index("Date", inplace=True)
+# # add yesterday's data to the dataset
+# dataset_total = pd.concat((dataset, yesterday_data), axis = 0)
+# trainset = dataset_total.iloc[-61:,3:4].values
+# from sklearn.preprocessing import MinMaxScaler
+# sc = MinMaxScaler(feature_range = (0, 1))
+# import numpy as np
+# training_scaled = sc.fit_transform(trainset)
+# x_train =[]
+# y_train =[]
+
+# x_train.append(training_scaled[0:60, 0])
+# y_train.append(training_scaled[60, 0])
+# x_train, y_train = np.array(x_train),np.array(y_train)
+
+# x_train = np.reshape(x_train,(x_train.shape[0],x_train.shape[1],1))
+
+# print(y_train)

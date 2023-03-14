@@ -1,5 +1,4 @@
 import pandas as pd
-from prophet import Prophet
 
 def train_model_1(data):
     """
