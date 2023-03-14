@@ -3,18 +3,12 @@ import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import MinMaxScaler
 from keras.models import Sequential, load_model
+from keras.models import Sequential, load_model
 from keras.layers import Dense
 from keras.layers import LSTM
 from keras.layers import Dropout
 from data_aquisition import get_apple_historical_data, get_yesterdays_stock_data,process_apple_stock, save_locally
 from config import apple_dir
-
-
-apple = get_apple_data()
-apple = process_apple_stock(apple)
-save_locally(apple, apple_dir)
-dataset = pd.read_csv(apple_dir, index_col=0)
-dataset.set_index("Date", inplace=True)
 
 # Train the model
 def train_model():
@@ -30,21 +24,27 @@ def train_model():
 
     trainset = dataset.iloc[:,3:4].values
 
+    # Scaling
     sc = MinMaxScaler(feature_range = (0,1))
     training_scaled = sc.fit_transform(trainset)
 
+    # Split train data between x and y components
     x_train = []
     y_train = []
+
     for i in range(60,training_scaled.shape[0]):
         x_train.append(training_scaled[i-60:i, 0])
         y_train.append(training_scaled[i,0])
+
     x_train,y_train = np.array(x_train),np.array(y_train)
 
+    # Reshape inputs
     x_train = np.reshape(x_train,(x_train.shape[0],x_train.shape[1],1))
 
+    # Arranging keras layers in sequential order
     regressor = Sequential()
-
-    regressor.add(LSTM(units = 50, return_sequences = True, input_shape = (x_train.shape[1],1)))
+    # Layer setup
+    regressor.add(LSTM(units=50, return_sequences=True, input_shape=(x_train.shape[1],1)))
     regressor.add(Dropout(0.2))
 
     regressor.add(LSTM(units = 50, return_sequences = True))
@@ -53,7 +53,7 @@ def train_model():
     regressor.add(LSTM(units = 50, return_sequences = True))
     regressor.add(Dropout(0.2))
 
-    regressor.add(LSTM(units = 50))
+    regressor.add(LSTM(units=50))
     regressor.add(Dropout(0.2))
 
     regressor.add(Dense(units = 1))
