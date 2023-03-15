@@ -8,6 +8,7 @@ from keras.layers import Dense
 from keras.layers import LSTM
 from keras.layers import Dropout
 from data_aquisition import get_apple_historical_data, get_yesterdays_stock_data,process_apple_stock, save_locally
+import os
 from config import apple_dir
 
 # Train the model
@@ -17,13 +18,11 @@ def train_model():
     save_locally(dataset, apple_dir)
     dataset.set_index("Date", inplace=True)
 
-
     #train_data = dataset.loc["2017-03-01":"2023-01-01", :]
     #test_data = dataset.loc["2023-01-01":, :]
     #trainset = train_data.iloc[:,3:4].values
 
-    trainset = dataset.iloc[:,3:4].values
-
+    trainset = dataset.iloc[:-1,3:4].values
     # Scaling
     sc = MinMaxScaler(feature_range = (0,1))
     training_scaled = sc.fit_transform(trainset)
@@ -72,13 +71,21 @@ def update_model():
 
     # Get yesterday's price
     yesterday_data = get_yesterdays_stock_data()
+    print(yesterday_data.head())
     yesterday_data = process_apple_stock(yesterday_data)
     yesterday_data.set_index("Date", inplace=True)
 
     dataset = pd.read_csv(apple_dir, index_col=0)
     dataset.set_index("Date", inplace=True)
+
+    #remove the last row
+    #dataset = dataset.iloc[:-1,:]
+
     # add yesterday's data to the dataset
     dataset_total = pd.concat((dataset, yesterday_data), axis = 0)
+    # save the updated dataset
+    dataset_total.to_csv(apple_dir)
+
     trainset = dataset_total.iloc[-61:,3:4].values
 
     sc = MinMaxScaler(feature_range = (0,1))
@@ -95,23 +102,18 @@ def update_model():
     regressor.fit(x_train, y_train, epochs = 1, batch_size = 32)
 
     # Get the predicted price
-    inputs = dataset_total[-60:, 3:4].values
-    predicted_price = regressor.predict(inputs)
+    inputs = dataset_total.iloc[-60:, 3:4].values
+
+    x_test = []
+    x_test.append(inputs)
+    x_test = np.array(x_test)
+    predicted_price = regressor.predict(x_test)
     predicted_price = sc.inverse_transform(predicted_price)
     # Save the updated model
     regressor.save('stock_predictor.h5')
     return predicted_price
 
-# Train the model if the saved model doesn't exist
-try:
-    regressor = load_model('stock_predictor.h5')
-    prediction = update_model()
-    print(prediction)
-except:
-    train_model()
-
-
-def plot_prediction():
+def plot_prediction(testset, predicted_stock_price):
     plt.plot(testset, color = 'red', label = 'Real Apple Stock Price')
     plt.plot(predicted_stock_price, color = 'blue', label = 'Predicted Apple Stock Price')
     plt.title('Apple Stock Price Prediction')
@@ -119,3 +121,10 @@ def plot_prediction():
     plt.ylabel('Apple Stock Price')
     plt.legend()
     plt.show()
+
+#check for stock_predictor.h5
+if not os.path.exists('stock_predictor.h5'):
+    train_model()
+else:
+    prediction = update_model()
+    print(prediction[0][0])
