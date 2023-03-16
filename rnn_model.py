@@ -7,25 +7,35 @@ from keras.models import Sequential, load_model
 from keras.layers import Dense
 from keras.layers import LSTM
 from keras.layers import Dropout
-from data_aquisition import get_apple_historical_data, get_yesterdays_stock_data,process_apple_stock, save_locally
+from data_aquisition import get_apple_historical_data, get_updated_stock_data,process_apple_stock, save_locally
 import os
-from config import apple_dir
+import pickle
+from config import apple_dir, figures_dir
+
+import pandas as pd
+from pandas_market_calendars import get_calendar
+
+def next_market_date(date_str):
+    date = pd.to_datetime(date_str)
+    nyse = get_calendar('NYSE')
+    end_date = pd.Timestamp(date.year+1, 12, 31)
+    schedule = nyse.schedule(start_date=date, end_date=end_date)
+    return schedule.iloc[1]['market_open'].strftime('%Y-%m-%d')
 
 # Train the model
 def train_model():
+    print("Training model...")
     dataset = get_apple_historical_data()
     dataset = process_apple_stock(dataset)
-    save_locally(dataset, apple_dir)
     dataset.set_index("Date", inplace=True)
+    save_locally(dataset, apple_dir)
 
-    #train_data = dataset.loc["2017-03-01":"2023-01-01", :]
-    #test_data = dataset.loc["2023-01-01":, :]
-    #trainset = train_data.iloc[:,3:4].values
-
-    trainset = dataset.iloc[:-1,3:4].values # extract the closing price column
+    train_data = dataset.loc[:, ['Close']] # extract the closing price column
     # Scaling
     sc = MinMaxScaler(feature_range = (0,1))
-    training_scaled = sc.fit_transform(trainset)
+    training_scaled = sc.fit_transform(train_data)
+    
+    pickle.dump(sc, open("scaler.pkl", "wb"))
 
     # Split train data between x and y components
     x_train = []
@@ -63,69 +73,116 @@ def train_model():
 
     # Save the model
     regressor.save('stock_predictor.h5')
-    # predict the stock price tomorrow
 
 # Update the model with yesterday's price
-def update_model():
+def update_model(last_date):
+    print("Updating model...")
     # Load the saved model
     regressor = load_model('stock_predictor.h5')
 
-    # Get yesterday's price
-    yesterday_data = get_yesterdays_stock_data()
-    print(yesterday_data.head())
-    yesterday_data = process_apple_stock(yesterday_data)
-    yesterday_data.set_index("Date", inplace=True)
+    # Get updated data
+    new_data = get_updated_stock_data(last_date)
+
+    print(new_data.tail())
+    new_data = process_apple_stock(new_data)
+    new_data.set_index("Date", inplace=True)
 
     dataset = pd.read_csv(apple_dir, index_col=0)
-    #dataset.set_index("Date", inplace=True)
 
-    #remove the last row
-    dataset = dataset.iloc[:-1,:]
-
-    # add yesterday's data to the dataset
-    dataset_total = pd.concat((dataset, yesterday_data), axis = 0)
+    # add new data to the dataset
+    dataset_total = pd.concat((dataset, new_data), axis = 0)
     # save the updated dataset
-    dataset_total.to_csv(apple_dir)
+    save_locally(dataset_total, apple_dir)
 
-    trainset = dataset_total.iloc[-61:,3:4].values
-
+    # extract the closing price column
+    dataset_total = dataset_total.loc[:, ['Close']] 
+    
     sc = MinMaxScaler(feature_range = (0,1))
-    training_scaled = sc.fit_transform(trainset)
+    sc = sc.fit(dataset_total)
+
+    training_scaled = sc.transform(dataset_total)
+    pickle.dump(sc, open("scaler.pkl", "wb"))
     x_train =[]
     y_train =[]
-    x_train.append(training_scaled[0:60, 0])
-    y_train.append(training_scaled[60, 0])
+    print(new_data.shape[0])
+    for i in range(new_data.shape[0]):
+        if i == 0:
+            x_train.append(training_scaled[-60:, 0])
+            y_train.append(training_scaled[-1, 0])
+        else:
+            x_train.append(training_scaled[-i-60:-i, 0])
+            y_train.append(training_scaled[-i-1, 0])
+    x_train.reverse()
+    y_train.reverse()
     x_train, y_train = np.array(x_train),np.array(y_train)
-
     x_train = np.reshape(x_train,(x_train.shape[0],x_train.shape[1],1))
 
     # Train the model
-    regressor.fit(x_train, y_train, epochs = 1, batch_size = 32)
-
-    # Get the predicted price
-    inputs = dataset_total.iloc[-60:, 3:4].values
-
-    x_test = []
-    x_test.append(inputs)
-    x_test = np.array(x_test)
-    predicted_price = regressor.predict(x_test)
-    predicted_price = sc.inverse_transform(predicted_price)
+    regressor.fit(x_train, y_train, epochs = 1, batch_size = 1)
     # Save the updated model
     regressor.save('stock_predictor.h5')
-    return predicted_price
 
-def plot_prediction(testset, predicted_stock_price):
-    plt.plot(testset, color = 'red', label = 'Real Apple Stock Price')
-    plt.plot(predicted_stock_price, color = 'blue', label = 'Predicted Apple Stock Price')
+def predict(days):
+    print("Predicting...")
+    # Load the saved model
+    regressor = load_model('stock_predictor.h5')
+    dataset = pd.read_csv(apple_dir, index_col=0)
+    # load the scaler
+    sc = pickle.load(open("scaler.pkl", "rb"))
+
+    prediced_close_prices = []
+    dates = []
+    for x in range(days):
+        inputs = dataset.tail(60)['Close']
+        inputs = inputs.values.reshape(-1,1)
+
+        inputs = sc.transform(inputs)
+        inputs = np.array(inputs[:,0])
+        inputs = np.reshape(inputs, (1,inputs.shape[0],1))
+        predicted_stock_price = regressor.predict(inputs)
+        predicted_stock_price = sc.inverse_transform(predicted_stock_price)
+        # append the predicted value to the train data with the next date generated by next_market_date
+        last_date = dataset.index[-1]
+        next_date = next_market_date(last_date)
+        dataset.loc[next_date, 'Close'] = predicted_stock_price[0][0]
+        prediced_close_prices.append(predicted_stock_price[0][0])
+        dates.append(next_date)
+        
+    predictions = pd.DataFrame({'Date': dates, 'Close': prediced_close_prices})
+    predictions.set_index('Date', inplace=True)
+    return predictions
+
+def plot_prediction_vs_real(real_stock_prices, predictions):
+    plt.plot(real_stock_prices, color = 'red', label = 'Real Apple Stock Price')
+    plt.plot(predictions, color = 'blue', label = 'Predicted Apple Stock Price')
     plt.title('Apple Stock Price Prediction')
     plt.xlabel('Time')
     plt.ylabel('Apple Stock Price')
     plt.legend()
     plt.show()
 
+def plot_prediction(predictions):
+    dataset = pd.read_csv(apple_dir, index_col=0)
+    plt.plot(dataset.index,dataset['Close'], color = 'red', label = 'Historical Apple Stock Price')
+    plt.plot(predictions.index,predictions['Close'], color = 'blue', label = 'Predicted Apple Stock Price')
+    plt.title('Apple Stock Price Prediction')
+    plt.xlabel('Time')
+    plt.ylabel('Apple Stock Price')
+    plt.legend()
+    plt.savefig(os.path.join(figures_dir, "prediction.png"))
+    plt.show()
+
 #check for stock_predictor.h5
-if not os.path.exists('stock_predictor.h5'):
+if not os.path.exists('stock_predictor.h5') or not os.path.exists(apple_dir):
     train_model()
-else:
-    prediction = update_model()
-    print(prediction[0][0])
+
+data = pd.read_csv(apple_dir, index_col=0)
+last_date = data.index[-1]
+# check if the last row is today's date
+if last_date != f"{pd.Timestamp.today().date()}":
+    update_model(last_date)
+
+prediction = predict(10)
+print(prediction)
+plot_prediction(prediction)
+
