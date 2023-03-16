@@ -22,7 +22,7 @@ def train_model():
     #test_data = dataset.loc["2023-01-01":, :]
     #trainset = train_data.iloc[:,3:4].values
 
-    trainset = dataset.iloc[:-1,3:4].values
+    trainset = dataset.iloc[:-1,3:4].values # extract the closing price column
     # Scaling
     sc = MinMaxScaler(feature_range = (0,1))
     training_scaled = sc.fit_transform(trainset)
@@ -63,6 +63,7 @@ def train_model():
 
     # Save the model
     regressor.save('stock_predictor.h5')
+    # predict the stock price tomorrow
 
 # Update the model with yesterday's price
 def update_model():
@@ -76,10 +77,10 @@ def update_model():
     yesterday_data.set_index("Date", inplace=True)
 
     dataset = pd.read_csv(apple_dir, index_col=0)
-    dataset.set_index("Date", inplace=True)
+    #dataset.set_index("Date", inplace=True)
 
     #remove the last row
-    #dataset = dataset.iloc[:-1,:]
+    dataset = dataset.iloc[:-1,:]
 
     # add yesterday's data to the dataset
     dataset_total = pd.concat((dataset, yesterday_data), axis = 0)
