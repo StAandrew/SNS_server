@@ -51,12 +51,15 @@ def get_updated_stock_data(begin_date):
 
     # get the stock data for Apple Inc. from begin_date to end_date
     aapl_stock = apple.history(start=begin_date, interval="1d")
+    print(f'111: {aapl_stock}')
 
     # reset the index of the DataFrame
     aapl_stock.reset_index(inplace=True)
+    print(f'222: {aapl_stock}')
 
     # remove first row since it is the same as the last row of the previous DataFrame
-    aapl_stock = aapl_stock.iloc[1:, :]
+    # aapl_stock = aapl_stock.iloc[1:, :]
+    # print(f'333: {aapl_stock}')
 
     # return the DataFrame containing the stock data
     return aapl_stock

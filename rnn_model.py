@@ -163,8 +163,8 @@ def plot_prediction_vs_real(real_stock_prices, predictions):
 
 def plot_prediction(predictions):
     dataset = pd.read_csv(apple_dir, index_col=0)
-    plt.plot(dataset.index,dataset['Close'], color = 'red', label = 'Historical Apple Stock Price')
-    plt.plot(predictions.index,predictions['Close'], color = 'blue', label = 'Predicted Apple Stock Price')
+    plt.plot(dataset.tail(60).index, dataset.tail(60)['Close'], color = 'red', label = 'Historical Apple Stock Price')
+    plt.plot(predictions.index, predictions['Close'], color = 'blue', label = 'Predicted Apple Stock Price')
     plt.title('Apple Stock Price Prediction')
     plt.xlabel('Time')
     plt.ylabel('Apple Stock Price')
