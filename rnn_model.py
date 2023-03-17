@@ -7,13 +7,22 @@ from keras.models import Sequential, load_model
 from keras.layers import Dense
 from keras.layers import LSTM
 from keras.layers import Dropout
-from data_aquisition import get_apple_historical_data, get_updated_stock_data,process_apple_stock, save_locally
+from data_aquisition import get_historical_data, get_updated_stock_data, process_stock_data, save_locally
 import os
 import pickle
-from config import apple_dir, figures_dir
+from config import figures_dir, dataset_dir
 
 import pandas as pd
 from pandas_market_calendars import get_calendar
+
+def get_dir(ticker):
+    stock_csv = ticker + "_data.csv"
+    stock_dir = os.path.join(dataset_dir, stock_csv)
+    return stock_dir
+
+def get_name(ticker):
+    model_name = ticker + "_model.h5"
+    return model_name
 
 def next_market_date(date_str):
     date = pd.to_datetime(date_str)
@@ -23,12 +32,14 @@ def next_market_date(date_str):
     return schedule.iloc[1]['market_open'].strftime('%Y-%m-%d')
 
 # Train the model
-def train_model():
+def train_model(ticker):
     print("Training model...")
-    dataset = get_apple_historical_data()
-    dataset = process_apple_stock(dataset)
+    dataset = get_historical_data(ticker)
+    dataset = process_stock_data(dataset)
     dataset.set_index("Date", inplace=True)
-    save_locally(dataset, apple_dir)
+
+    stock_dir = get_dir(ticker)
+    save_locally(dataset, stock_dir)
 
     train_data = dataset.loc[:, ['Close']] # extract the closing price column
     # Scaling
@@ -72,27 +83,30 @@ def train_model():
     regressor.fit(x_train, y_train, epochs = 20, batch_size = 32)
 
     # Save the model
-    regressor.save('stock_predictor.h5')
+    model_name = get_name(ticker)
+    regressor.save(model_name)
 
 # Update the model with yesterday's price
-def update_model(last_date):
+def update_model(ticker, last_date):
     print("Updating model...")
     # Load the saved model
-    regressor = load_model('stock_predictor.h5')
+    model_name = get_name(ticker)
+    regressor = load_model(model_name)
 
     # Get updated data
-    new_data = get_updated_stock_data(last_date)
+    new_data = get_updated_stock_data(ticker, last_date)
 
     print(new_data.tail())
-    new_data = process_apple_stock(new_data)
+    new_data = process_stock_data(new_data)
     new_data.set_index("Date", inplace=True)
 
-    dataset = pd.read_csv(apple_dir, index_col=0)
+    stock_dir = get_dir(ticker)
+    dataset = pd.read_csv(stock_dir, index_col=0)
 
     # add new data to the dataset
     dataset_total = pd.concat((dataset, new_data), axis = 0)
     # save the updated dataset
-    save_locally(dataset_total, apple_dir)
+    save_locally(dataset_total, stock_dir)
 
     # extract the closing price column
     dataset_total = dataset_total.loc[:, ['Close']] 
@@ -120,13 +134,16 @@ def update_model(last_date):
     # Train the model
     regressor.fit(x_train, y_train, epochs = 1, batch_size = 1)
     # Save the updated model
-    regressor.save('stock_predictor.h5')
+    model_name = get_name(ticker)
+    regressor.save(model_name)
 
-def predict(days):
+def predict(ticker, days):
     print("Predicting...")
     # Load the saved model
-    regressor = load_model('stock_predictor.h5')
-    dataset = pd.read_csv(apple_dir, index_col=0)
+    model_name = get_name(ticker)
+    regressor = load_model(model_name)
+    stock_dir = get_dir(ticker)
+    dataset = pd.read_csv(stock_dir, index_col=0)
     # load the scaler
     sc = pickle.load(open("scaler.pkl", "rb"))
 
@@ -161,27 +178,33 @@ def plot_prediction_vs_real(real_stock_prices, predictions):
     plt.legend()
     plt.show()
 
-def plot_prediction(predictions):
-    dataset = pd.read_csv(apple_dir, index_col=0)
-    plt.plot(dataset.tail(60).index, dataset.tail(60)['Close'], color = 'red', label = 'Historical Apple Stock Price')
-    plt.plot(predictions.index, predictions['Close'], color = 'blue', label = 'Predicted Apple Stock Price')
-    plt.title('Apple Stock Price Prediction')
+def plot_prediction(ticker, predictions):
+    stock_dir = get_dir(ticker)
+    dataset = pd.read_csv(stock_dir, index_col=0)
+    plt.plot(dataset.tail(60).index, dataset.tail(60)['Close'], color = 'red', label = f'Historical {ticker} Price')
+    plt.plot(predictions.index, predictions['Close'], color = 'blue', label = f'Predicted {ticker} Price')
+    plt.title(f'{ticker} Stock Price Prediction')
     plt.xlabel('Time')
-    plt.ylabel('Apple Stock Price')
+    plt.ylabel(f'{ticker} Stock Price')
     plt.legend()
-    plt.savefig(os.path.join(figures_dir, "prediction.png"))
+    plt.savefig(os.path.join(figures_dir, ticker + "_prediction.png"))
     plt.show()
 
 #check for stock_predictor.h5
-if not os.path.exists('stock_predictor.h5') or not os.path.exists(apple_dir):
-    train_model()
+def get_prediction(ticker, days):
+    model_name = get_name(ticker)
+    stock_dir = get_dir(ticker)
+    if not os.path.exists(model_name) or not os.path.exists(stock_dir):
+        train_model(ticker)
 
-data = pd.read_csv(apple_dir, index_col=0)
-last_date = data.index[-1]
-# check if the last row is today's date
-if last_date != f"{pd.Timestamp.today().date()}":
-    update_model(last_date)
+    data = pd.read_csv(stock_dir, index_col=0)
+    last_date = data.index[-1]
+    # check if the last row is today's date
+    if last_date != f"{pd.Timestamp.today().date()}":
+        update_model(ticker, last_date)
 
-prediction = predict(10)
-print(prediction)
-plot_prediction(prediction)
+    prediction = predict(ticker, days)
+    print(prediction)
+    plot_prediction(ticker, prediction)
+
+get_prediction('URA', 30)

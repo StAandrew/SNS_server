@@ -2,10 +2,10 @@ import os
 import yfinance as yf
 import matplotlib.pyplot as plt
 import pandas as pd
-from config import apple_dir
+from config import dataset_dir
 
 
-def get_apple_historical_data():
+def get_historical_data(ticker):
 
     """
     Retrieves historical stock data for Apple Inc. from Yahoo Finance.
@@ -18,21 +18,21 @@ def get_apple_historical_data():
             A DataFrame containing the historical stock data for Apple Inc.
 
     """
-    print("Getting apple stock data...")
+    print("Fetching historical data...")
     # create a Ticker object for Apple Inc.
-    apple = yf.Ticker("AAPL")
+    stock = yf.Ticker(ticker)
 
     # get the historical stock data for Apple Inc from 5 years ago until today.
-    aapl_stock = apple.history(period="5y", interval="1d")
+    stock_data = stock.history(period="5y", interval="1d")
 
     # reset the index of the DataFrame
-    aapl_stock.reset_index(inplace=True)
+    stock_data.reset_index(inplace=True)
 
     # return the DataFrame containing the stock data
-    return aapl_stock
+    return stock_data
 
 
-def get_updated_stock_data(begin_date):
+def get_updated_stock_data(ticker, begin_date):
     """
     Retrieves the stock data for Apple Inc. from the previous trading day.
 
@@ -45,27 +45,24 @@ def get_updated_stock_data(begin_date):
             trading day.
 
     """
-    print("Getting updated apple stock data...")
+    print("Updating historical data...")
     # create a Ticker object for Apple Inc.
-    apple = yf.Ticker("AAPL")
+    stock = yf.Ticker(ticker)
 
     # get the stock data for Apple Inc. from begin_date to end_date
-    aapl_stock = apple.history(start=begin_date, interval="1d")
-    print(f'111: {aapl_stock}')
+    stock_data = stock.history(start=begin_date, interval="1d")
 
     # reset the index of the DataFrame
-    aapl_stock.reset_index(inplace=True)
-    print(f'222: {aapl_stock}')
+    stock_data.reset_index(inplace=True)
 
     # remove first row since it is the same as the last row of the previous DataFrame
     # aapl_stock = aapl_stock.iloc[1:, :]
-    # print(f'333: {aapl_stock}')
 
     # return the DataFrame containing the stock data
-    return aapl_stock
+    return stock_data
 
 
-def process_apple_stock(apple):
+def process_stock_data(stock):
     """
     Processes Apple stock data by removing unnecessary columns, calculating daily returns, and
     converting the datetime column to just the date. Also draws a heatmap correlation matrix
@@ -81,18 +78,19 @@ def process_apple_stock(apple):
         apple_data = pd.read_csv('apple_stock_data.csv')
         processed_apple_data = process_apple_stock(apple_data)
     """
-    print("Processing apple stock data...")
+    print("Processing stock data...")
     # remove unnecessary columns
-    apple = apple.drop(["Stock Splits"], axis=1)
+    stock = stock.drop(["Stock Splits"], axis=1)
     # add daily return column
-    apple["Daily Return"] = apple["Close"].pct_change()
+    stock["Daily Return"] = stock["Close"].pct_change()
     # multiply daily return by 100 to get percentage
-    apple["Daily Return"] = apple["Daily Return"].apply(lambda x: x * 100)
+    stock["Daily Return"] = stock["Daily Return"].apply(lambda x: x * 100)
     # fill NaN values with 0
-    apple["Daily Return"] = apple["Daily Return"].fillna(0)
+    stock["Daily Return"] = stock["Daily Return"].fillna(0)
     # convert datetime column to just date
-    apple["Date"] = apple["Date"].apply(lambda x: x.date())
-    return apple
+    stock["Date"] = stock["Date"].apply(lambda x: x.date())
+
+    return stock
 
 
 def save_locally(data, directory):
