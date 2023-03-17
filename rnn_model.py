@@ -185,4 +185,3 @@ if last_date != f"{pd.Timestamp.today().date()}":
 prediction = predict(10)
 print(prediction)
 plot_prediction(prediction)
-
