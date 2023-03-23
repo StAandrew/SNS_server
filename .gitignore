@@ -131,4 +131,5 @@ dmypy.json
 scaler.pkl
 stock_predictor.h5
 
-Datasets/apple_stock_data.csv
+Datasets
+Figures
