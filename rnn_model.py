@@ -218,7 +218,9 @@ def get_prediction(ticker, days):
         update_model(ticker, last_date)
 
     prediction = predict(ticker, days)
-    print(prediction)
-    plot_prediction(ticker, prediction)
 
-get_prediction('URA', 30)
+    return prediction
+
+out = get_prediction('URA', 30)
+print(out)
+plot_prediction('URA', out)
