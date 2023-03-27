@@ -52,6 +52,3 @@ def stocks_or_bonds(days, metric):
     bond_return = get_return(bonds, days)
     stock_pred = get_prediction(stocks, days)
     bond_pred = get_prediction(bonds, days)
-
-    if metric == 'return':
-        if get_return(stocks)
