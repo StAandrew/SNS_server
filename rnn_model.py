@@ -8,8 +8,6 @@ from data_aquisition import get_historical_data, get_updated_stock_data, process
 import os
 import pickle
 from config import figures_dir, dataset_dir
-
-import pandas as pd
 from pandas_market_calendars import get_calendar
 
 ROLLOING_WINDOW = 60
