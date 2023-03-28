@@ -38,21 +38,27 @@ def get_vol(ticker, days):
     vol = np.std(prediction)
     return vol
 
-# Sharpe ratio over the next D days
-def get_sharpe(ticker, days):
+# Sharpe ratio of stock over the next D days
+def get_sharpe(ticker, days, rfr):
     avg_return = get_avg_daily_return(ticker, days)
     vol = get_vol(ticker, days)
-    sharpe = avg_return / vol
+    sharpe = (avg_return - rfr) / vol
     return sharpe
 
-# Optimises portfolio of tickers for minimum variance
-def min_var_portfolio(ticker_list, days):
-    
+# Get portfolio returns over the next D days
+def get_portfolio_returns(ticker_list, days):
     returns_list = []
     for ticker in ticker_list:
         returns_list.append(get_daily_returns(ticker, days))
 
     combined_returns = np.array(returns_list).T
+
+    return combined_returns
+
+# Optimises portfolio of tickers for minimum variance
+def min_var_portfolio(ticker_list, days):
+    
+    combined_returns = get_portfolio_returns(ticker_list, days)
     cov_matrix = np.cov(combined_returns.T)
 
     # Define the objective function
@@ -74,8 +80,42 @@ def min_var_portfolio(ticker_list, days):
     constraints = ({'type': 'eq', 'fun': constraint_function})
     
     # Use quadratic programming to minimize the variance
-    result = minimize(objective_function, init_weights, args=cov_matrix, bounds=bounds,
-                      constraints=constraints, method='SLSQP')
+    result = minimize(objective_function, init_weights, args=cov_matrix, bounds=bounds, constraints=constraints, method='SLSQP')
     
     # Return the optimal weights
     return result.x
+
+# Sharpe ratio of portfolio over the next D days
+def get_portfolio_sharpe(weights, ticker_list, days, rfr):
+
+    combined_returns = get_portfolio_returns(ticker_list, days)
+
+    # Calculate portfolio returns and volatility
+    total_return = np.sum(combined_returns.mean(axis=0) * weights)
+    total_vol = np.sqrt(np.dot(weights.T, np.dot(combined_returns.cov(), weights)))
+
+    sharpe = (total_return - rfr) / total_vol
+
+    return -sharpe      # negative return because we use it to minimise
+
+# Optimises portfolio of tickers for maximum sharpe
+def max_sharpe_portfolio(ticker_list, days, rfr):
+    
+    combined_returns = get_portfolio_returns(ticker_list, days)
+
+    # Define the initial portfolio weights
+    num_stocks = combined_returns.shape[1]
+    init_weights = np.ones(num_stocks) / num_stocks
+
+    # Define the optimization constraints
+    constraints = ({'type': 'eq', 'fun': lambda x: np.sum(x) - 1})
+    bounds = tuple((0,1) for i in range(num_stocks))
+
+    # Run the optimization
+    result = minimize(get_portfolio_sharpe, init_weights, args=(combined_returns, rfr), method='SLSQP', bounds=bounds, constraints=constraints)
+
+    # Extract the optimal weights and maximum Sharpe ratio achieved
+    opt_weights = result.x
+    max_sharpe = -result.fun
+
+    return opt_weights, max_sharpe
