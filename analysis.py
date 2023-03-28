@@ -8,21 +8,21 @@ from rnn_model import get_prediction
 
 # Price in day D
 def get_price(ticker, day):
-    prediction = get_prediction(ticker, day)
+    prediction = get_prediction(ticker, day)['Close'].tolist()
     return prediction[day-1]
 
 # Return over the next D days
 def get_return(ticker, days):
-    prediction = get_prediction(ticker, days)
+    prediction = get_prediction(ticker, days)['Close'].tolist()
     profit = (prediction[days-1] - prediction[0]) / prediction[0]
     return profit
 
 # Daily return over the next D days
 def get_daily_returns(ticker, days):
-    prediction = get_prediction(ticker, days)
+    prediction = get_prediction(ticker, days)['Close'].tolist()
     daily_returns = []
     for i in range(days-1):
-        daily_return = prediction[i+1] - prediction[i-1]
+        daily_return = prediction[i+1] - prediction[i]
         daily_returns.append(daily_return)
 
     return daily_returns
@@ -34,7 +34,7 @@ def get_avg_daily_return(ticker, days):
 
 # Volatility over the next D days
 def get_vol(ticker, days):
-    prediction = get_prediction(ticker, days)
+    prediction = get_prediction(ticker, days)['Close'].tolist()
     vol = np.std(prediction)
     return vol
 
@@ -121,4 +121,11 @@ def max_sharpe_portfolio(ticker_list, days, rfr):
     return opt_weights, max_sharpe
 
 
-opt_weights, max_sharpe = max_sharpe_portfolio(['PLTR', 'AAPL', 'AMZN', 'IVV'], 20, 0.01)
+
+ticker_list = ['PLTR', 'AAPL', 'AMZN', 'IVV']
+opt_weights, max_sharpe = max_sharpe_portfolio(ticker_list, 20, 0.01)
+
+for i in range(ticker_list):
+    print(f'{ticker_list[i]} weight: {opt_weights[i]}')
+    print(f'Max Sharpe: {max_sharpe}')
+    print(f'SUM CHECK: {sum(opt_weights)}')
