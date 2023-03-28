@@ -119,3 +119,6 @@ def max_sharpe_portfolio(ticker_list, days, rfr):
     max_sharpe = -result.fun
 
     return opt_weights, max_sharpe
+
+
+opt_weights, max_sharpe = max_sharpe_portfolio(['PLTR', 'AAPL', 'AMZN', 'IVV'], 20, 0.01)
