@@ -7,21 +7,22 @@ from keras.layers import Dense, LSTM, Dropout, GRU, Bidirectional
 from data_aquisition import get_historical_data, get_updated_stock_data, process_stock_data, save_locally
 import os
 import pickle
-from config import figures_dir, dataset_dir
+from config import figures_dir, dataset_dir, models_dir
 from pandas_market_calendars import get_calendar
 
 ROLLOING_WINDOW = 60
 
 ROLLOING_WINDOW = 60
 
-def get_dir(ticker):
+def get_data_dir(ticker):
     stock_csv = ticker + "_data.csv"
     stock_dir = os.path.join(dataset_dir, stock_csv)
     return stock_dir
 
-def get_name(ticker):
+def get_model_dir(ticker):
     model_name = ticker + "_model.h5"
-    return model_name
+    model_dir = os.path.join(models_dir, model_name)
+    return model_dir
 
 def next_market_date(date_str):
     date = pd.to_datetime(date_str)
@@ -37,7 +38,7 @@ def train_model(ticker):
     dataset = process_stock_data(dataset)
     dataset.set_index("Date", inplace=True)
 
-    stock_dir = get_dir(ticker)
+    stock_dir = get_data_dir(ticker)
     save_locally(dataset, stock_dir)
 
     train_data = dataset.loc[:, ['Close']] # extract the closing price column
@@ -77,15 +78,15 @@ def train_model(ticker):
     regressor.fit(x_train, y_train, epochs=50, batch_size=32)
 
     # Save the model
-    model_name = get_name(ticker)
-    regressor.save(model_name)
+    model_dir = get_model_dir(ticker)
+    regressor.save(model_dir)
 
 # Update the model with yesterday's price
 def update_model(ticker, last_date):
     print("Updating model...")
     # Load the saved model
-    model_name = get_name(ticker)
-    regressor = load_model(model_name)
+    model_dir = get_model_dir(ticker)
+    regressor = load_model(model_dir)
 
     # Get updated data
     new_data = get_updated_stock_data(ticker, last_date)
@@ -94,7 +95,7 @@ def update_model(ticker, last_date):
     new_data = process_stock_data(new_data)
     new_data.set_index("Date", inplace=True)
 
-    stock_dir = get_dir(ticker)
+    stock_dir = get_data_dir(ticker)
     dataset = pd.read_csv(stock_dir, index_col=0)
 
     # add new data to the dataset
@@ -130,15 +131,15 @@ def update_model(ticker, last_date):
     # Train the model
     regressor.fit(x_train, y_train, epochs = 1, batch_size = 1)
     # Save the updated model
-    model_name = get_name(ticker)
-    regressor.save(model_name)
+    model_dir = get_model_dir(ticker)
+    regressor.save(model_dir)
 
 def predict(ticker, days):
     print("Predicting...")
     # Load the saved model
-    model_name = get_name(ticker)
-    regressor = load_model(model_name)
-    stock_dir = get_dir(ticker)
+    model_dir = get_model_dir(ticker)
+    regressor = load_model(model_dir)
+    stock_dir = get_data_dir(ticker)
     dataset = pd.read_csv(stock_dir, index_col=0)
     # load the scaler
     sc = pickle.load(open("scaler.pkl", "rb"))
@@ -191,7 +192,7 @@ def plot_prediction_vs_real(real_stock_prices, predictions):
     plt.show()
 
 def plot_prediction(ticker, predictions):
-    stock_dir = get_dir(ticker)
+    stock_dir = get_data_dir(ticker)
     dataset = pd.read_csv(stock_dir, index_col=0)
     plt.plot(dataset.tail(60).index, dataset.tail(60)['Close'], color = 'red', label = f'Historical {ticker} Price')
     plt.plot(predictions.index, predictions['Close'], color = 'blue', label = f'Predicted {ticker} Price')
@@ -204,9 +205,9 @@ def plot_prediction(ticker, predictions):
 
 #check for stock_predictor.h5
 def get_prediction(ticker, days):
-    model_name = get_name(ticker)
-    stock_dir = get_dir(ticker)
-    if not os.path.exists(model_name) or not os.path.exists(stock_dir):
+    model_dir = get_model_dir(ticker)
+    stock_dir = get_data_dir(ticker)
+    if not os.path.exists(model_dir) or not os.path.exists(stock_dir):
         train_model(ticker)
 
     data = pd.read_csv(stock_dir, index_col=0)
@@ -219,6 +220,6 @@ def get_prediction(ticker, days):
 
     return prediction
 
-out = get_prediction('URA', 30)
+out = get_prediction('QQQ', 30)
 print(out)
-plot_prediction('URA', out)
+plot_prediction('QQQ', out)
