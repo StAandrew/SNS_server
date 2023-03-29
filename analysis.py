@@ -56,13 +56,17 @@ def get_portfolio_returns(ticker_list, days):
     return combined_returns
 
 # Optimises portfolio of tickers for minimum variance
-def min_var_portfolio(ticker_list, days):
+def min_var_portfolio(combined_returns):
     
-    combined_returns = get_portfolio_returns(ticker_list, days)
     cov_matrix = np.cov(combined_returns.T)
 
     # Define the objective function
     def objective_function(weights, cov_matrix):
+        print('!!! DEBUG !!!')
+        print(np.shape(weights.T))
+        print(np.shape(cov_matrix))
+        print(np.shape(weights))
+
         return np.dot(weights.T, np.dot(cov_matrix, weights))
     
     # Define the constraints
@@ -70,8 +74,11 @@ def min_var_portfolio(ticker_list, days):
         return np.sum(weights) - 1.0
     
     # Define initial weights as equal weights
-    n_assets = len(combined_returns)
+    n_assets = combined_returns.shape[1]
     init_weights = np.ones(n_assets) / n_assets
+    print('??? DEBUG ???')
+    print(n_assets)
+    print(np.shape(init_weights))
     
     # Define the bounds for the optimization
     bounds = tuple((0, 1) for i in range(n_assets))
@@ -86,23 +93,21 @@ def min_var_portfolio(ticker_list, days):
     return result.x
 
 # Sharpe ratio of portfolio over the next D days
-def get_portfolio_sharpe(weights, ticker_list, days, rfr):
+def get_portfolio_sharpe(weights, combined_returns, rfr):
 
-    combined_returns = get_portfolio_returns(ticker_list, days)
+    cov_matrix = np.cov(combined_returns.T)
 
     # Calculate portfolio returns and volatility
     total_return = np.sum(combined_returns.mean(axis=0) * weights)
-    total_vol = np.sqrt(np.dot(weights.T, np.dot(combined_returns.cov(), weights)))
+    total_vol = np.sqrt(np.dot(weights.T, np.dot(cov_matrix, weights)))
 
     sharpe = (total_return - rfr) / total_vol
 
     return -sharpe      # negative return because we use it to minimise
 
 # Optimises portfolio of tickers for maximum sharpe
-def max_sharpe_portfolio(ticker_list, days, rfr):
+def max_sharpe_portfolio(combined_returns, rfr):
     
-    combined_returns = get_portfolio_returns(ticker_list, days)
-
     # Define the initial portfolio weights
     num_stocks = combined_returns.shape[1]
     init_weights = np.ones(num_stocks) / num_stocks
@@ -122,10 +127,18 @@ def max_sharpe_portfolio(ticker_list, days, rfr):
 
 
 
-ticker_list = ['PLTR', 'AAPL', 'AMZN', 'IVV']
-opt_weights, max_sharpe = max_sharpe_portfolio(ticker_list, 20, 0.01)
+ticker_list = ['QQQ', 'AAPL', 'AMZN', 'IVV', 'URA']
+combined_returns = get_portfolio_returns(ticker_list, 20)
+opt_weights, max_sharpe = max_sharpe_portfolio(combined_returns, 0.01)
+var_weights = min_var_portfolio(combined_returns)
 
-for i in range(ticker_list):
+print('--- SHARPE OPTIMISATION ---')
+for i in range(5):
     print(f'{ticker_list[i]} weight: {opt_weights[i]}')
     print(f'Max Sharpe: {max_sharpe}')
-    print(f'SUM CHECK: {sum(opt_weights)}')
+print(f'SUM CHECK: {sum(opt_weights)}')
+
+print('---- VAR OPTIMISATION -----')
+for i in range(5):
+    print(f'{ticker_list[i]} weight: {var_weights[i]}')
+print(f'SUM CHECK: {sum(var_weights)}')
