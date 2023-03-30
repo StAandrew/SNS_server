@@ -33,7 +33,7 @@ def get_avg_daily_return(ticker, days):
     return np.mean(daily_returns)
 
 # Volatility over the next D days
-def get_vol(ticker, days):
+def get_std(ticker, days):
     prediction = get_prediction(ticker, days)['Close'].tolist()
     vol = np.std(prediction)
     return vol
@@ -41,7 +41,7 @@ def get_vol(ticker, days):
 # Sharpe ratio of stock over the next D days
 def get_sharpe(ticker, days, rfr):
     avg_return = get_avg_daily_return(ticker, days)
-    vol = get_vol(ticker, days)
+    vol = get_std(ticker, days)
     sharpe = (avg_return - rfr) / vol
     return sharpe
 
@@ -62,11 +62,6 @@ def min_var_portfolio(combined_returns):
 
     # Define the objective function
     def objective_function(weights, cov_matrix):
-        print('!!! DEBUG !!!')
-        print(np.shape(weights.T))
-        print(np.shape(cov_matrix))
-        print(np.shape(weights))
-
         return np.dot(weights.T, np.dot(cov_matrix, weights))
     
     # Define the constraints
@@ -76,9 +71,6 @@ def min_var_portfolio(combined_returns):
     # Define initial weights as equal weights
     n_assets = combined_returns.shape[1]
     init_weights = np.ones(n_assets) / n_assets
-    print('??? DEBUG ???')
-    print(n_assets)
-    print(np.shape(init_weights))
     
     # Define the bounds for the optimization
     bounds = tuple((0, 1) for i in range(n_assets))
@@ -89,8 +81,11 @@ def min_var_portfolio(combined_returns):
     # Use quadratic programming to minimize the variance
     result = minimize(objective_function, init_weights, args=cov_matrix, bounds=bounds, constraints=constraints, method='SLSQP')
     
-    # Return the optimal weights
-    return result.x
+    # Extract the optimal weights and minimum Variance achieved
+    opt_weights = result.x
+    min_var = result.fun
+
+    return opt_weights, min_var
 
 # Sharpe ratio of portfolio over the next D days
 def get_portfolio_sharpe(weights, combined_returns, rfr):
@@ -130,15 +125,16 @@ def max_sharpe_portfolio(combined_returns, rfr):
 ticker_list = ['QQQ', 'AAPL', 'AMZN', 'IVV', 'URA']
 combined_returns = get_portfolio_returns(ticker_list, 20)
 opt_weights, max_sharpe = max_sharpe_portfolio(combined_returns, 0.01)
-var_weights = min_var_portfolio(combined_returns)
+var_weights, min_var = min_var_portfolio(combined_returns)
 
 print('--- SHARPE OPTIMISATION ---')
 for i in range(5):
     print(f'{ticker_list[i]} weight: {opt_weights[i]}')
-    print(f'Max Sharpe: {max_sharpe}')
+print(f'Max Sharpe: {max_sharpe}')
 print(f'SUM CHECK: {sum(opt_weights)}')
 
 print('---- VAR OPTIMISATION -----')
 for i in range(5):
     print(f'{ticker_list[i]} weight: {var_weights[i]}')
+print(f'Min Var: {min_var}')
 print(f'SUM CHECK: {sum(var_weights)}')
