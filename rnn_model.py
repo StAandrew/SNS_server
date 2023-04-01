@@ -220,6 +220,9 @@ def get_prediction(ticker, days):
 
     return prediction
 
+
+"""
 out = get_prediction('QQQ', 30)
 print(out)
 plot_prediction('QQQ', out)
+"""

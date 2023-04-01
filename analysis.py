@@ -121,7 +121,7 @@ def max_sharpe_portfolio(combined_returns, rfr):
     return opt_weights, max_sharpe
 
 
-
+"""
 ticker_list = ['QQQ', 'AAPL', 'AMZN', 'IVV', 'URA']
 combined_returns = get_portfolio_returns(ticker_list, 20)
 opt_weights, max_sharpe = max_sharpe_portfolio(combined_returns, 0.01)
@@ -138,3 +138,4 @@ for i in range(5):
     print(f'{ticker_list[i]} weight: {var_weights[i]}')
 print(f'Min Var: {min_var}')
 print(f'SUM CHECK: {sum(var_weights)}')
+"""
