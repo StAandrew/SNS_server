@@ -9,6 +9,8 @@ import analysis
 HOST = "127.0.0.1"
 PORT = 65432
 
+### CALL ANALYSIS.PY FUNCIONS ###
+
 def get_price(stock_name, day):
     price = analysis.get_price(stock_name, day)
     return price
@@ -37,7 +39,8 @@ def min_var_portfolio(stocks, days):
     combined_returns = analysis.get_portfolio_returns(stocks, days)
     opt_weights, min_var = analysis.min_var_portfolio(combined_returns)
     
-    data_out = opt_weights.tolist()
+    #Combine the two variables to a single list (simplifies communication between client and server)
+    data_out = opt_weights.tolist() #Convert np array to list
     data_out.append(min_var)
 
     return data_out
@@ -46,52 +49,57 @@ def max_sharpe_portfolio(stocks, days, rfr):
     combined_returns = analysis.get_portfolio_returns(stocks, days)
     opt_weights, max_sharpe = analysis.max_sharpe_portfolio(combined_returns, rfr)
 
-    data_out = opt_weights.tolist()
+    #Combine the two variables to a single list (simplifies communication between client and server)
+    data_out = opt_weights.tolist() #Convert np array to list
     data_out.append(max_sharpe)
 
     return data_out
 
+
+### CLIENT HANDLING ###
+
 def client_connection_thread(conn, port, lock):
     continue_loop = True
     while continue_loop:
-        data = conn.recv(1024)
+        data = conn.recv(1024) #Recieve pickle object from client
         if data:
-            decoded = pickle.loads(data)
+            decoded = pickle.loads(data) #'unpickle' data
             print("Received:", decoded)
-            choice = str(decoded.pop())
-            days = int(decoded.pop())
-            stock_name = decoded[0]
+            choice = str(decoded.pop()) #Pop last element (the chocice based on the tag predicted by the NLP algorithm on the client side)
+            days = int(decoded.pop()) #Pop the 2nd last element (the number of days ahead to predict)
+            stock_name = decoded[0] #This is only used in the functions involving a single stock, so will always be the first element in the list
             if choice == '1': #Predict price of stock
                 data_out = get_price(stock_name, days)
 
             elif choice == '2': #Predict returns of (single) stock
                 data_out = get_daily_returns(stock_name, days)
 
-            elif choice == '3':
+            elif choice == '3': #Predict average returns of a stock
                 data_out = get_avg_daily_returns(stock_name, days)
 
-            elif choice == '4':
+            elif choice == '4': #Predict volatility of stock
                 data_out = get_std(stock_name, days)
 
-            elif choice == '5':
-                rfr = float(decoded.pop())
+            elif choice == '5': #Predict sharpe ratio of stock
+                rfr = float(decoded.pop()) #Pop the last element of the list (after choice and days are removed this will be the rfr)
                 data_out = get_sharpe(stock_name, days, rfr)
 
-            elif choice == '6':
+            elif choice == '6': #Predict the returns of a portfolio of stocks
                 data_out = get_portfolio_returns(decoded, days)
 
-            elif choice == '7':
+            elif choice == '7': #Optimise portfolio for minimum variance
                 data_out = min_var_portfolio(decoded, days)
             
-            elif choice == '8':
-                rfr = float(decoded.pop())
+            elif choice == '8': #Optimise portfolio for maximum sharpe ratio
+                rfr = float(decoded.pop()) #Pop last element of the list (after choice and days are removed this will be the rfr)
                 data_out = max_sharpe_portfolio(decoded, days, rfr)
-        else:
+        else: #If no data is present close the connection
             print(f"Closing connection on port {port}")
             lock.release()  # release lock before breaking
             continue_loop = False
 
-        data_pickle = pickle.dumps(data_out)
+
+        data_pickle = pickle.dumps(data_out) #Convert list to pickle object
         conn.send(data_pickle)  # send data back to client
     conn.close()
 
