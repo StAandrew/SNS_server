@@ -14,7 +14,6 @@ from pandas_market_calendars import get_calendar
 
 ROLLOING_WINDOW = 60
 
-ROLLOING_WINDOW = 60
 
 def get_dir(ticker):
     stock_csv = ticker + "_data.csv"
@@ -76,7 +75,7 @@ def train_model(ticker):
 
     regressor.compile(optimizer='adam', loss='mean_squared_error')
 
-    regressor.fit(x_train, y_train, epochs=50, batch_size=32)
+    regressor.fit(x_train, y_train, epochs=10, batch_size=32)
 
     # Save the model
     model_name = get_name(ticker)
