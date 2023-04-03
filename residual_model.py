@@ -1,23 +1,23 @@
-import numpy as np # linear algebra
-import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
+import numpy as np 
+import pandas as pd 
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import MinMaxScaler
 from keras.models import Sequential, load_model
-from keras.layers import Dense, LSTM, Dropout, GRU, Bidirectional
+from keras.layers import Dense, LSTM, Dropout
 from data_aquisition import get_historical_data, get_updated_stock_data, process_stock_data, save_locally
 import os
 import pickle
 import tensorflow as tf
-from config import figures_dir, dataset_dir, models_dir
 from pandas_market_calendars import get_calendar
 from datetime import datetime
-# import accuracy_metrics
+import matplotlib.dates as mdates
+from sklearn.metrics import accuracy_score, f1_score
+from config import figures_dir, dataset_dir, models_dir
 
-
-
+# Define constants
 ROLLOING_WINDOW = 30
 
-
+# Helper functions to get paths for dataset and model
 def get_data_dir(ticker):
     stock_csv = ticker + "_data.csv"
     stock_dir = os.path.join(dataset_dir, stock_csv)
@@ -28,6 +28,7 @@ def get_model_dir(ticker):
     model_dir = os.path.join(models_dir, model_name)
     return model_dir
 
+# Function to find the next market date given a date string
 def next_market_date(date_str):
     date = pd.to_datetime(date_str)
     nyse = get_calendar('NYSE')
@@ -35,7 +36,44 @@ def next_market_date(date_str):
     schedule = nyse.schedule(start_date=date, end_date=end_date)
     return schedule.iloc[1]['market_open'].strftime('%Y-%m-%d')
 
+# Function to find the most recent market date given a date string
+def most_recent_market_date(date_str):
+    date = pd.to_datetime(date_str)
+    nyse = get_calendar('NYSE')
+    
+    # Check the schedule for the previous 30 days, which should be sufficient
+    start_date = date - pd.DateOffset(days=30)
+    schedule = nyse.schedule(start_date=start_date, end_date=date)
 
+    # If the given date is a market day, return it
+    if not schedule.empty and schedule.iloc[-1]['market_close'].date() == date.date():
+        recent_market_day = date
+    else:
+        # Otherwise, return the most recent market day
+        recent_market_day = schedule.iloc[-1]['market_close'].normalize()
+
+    return recent_market_day.strftime('%Y-%m-%d')
+
+# Function to update the stock data with the most recent data
+def update_data(ticker, last_date):
+    print("Updating data...")
+    next_date = next_market_date(last_date)
+    data = get_updated_stock_data(ticker, next_date)
+    data = process_stock_data(data)
+    data.set_index("Date", inplace=True)
+
+    stock_dir = get_data_dir(ticker)
+    dataset = pd.read_csv(stock_dir, index_col=0)
+
+
+    # add new data to the dataset
+    dataset_total = pd.concat((dataset, data), axis = 0)
+
+    stock_dir = get_data_dir(ticker)
+
+    save_locally(dataset_total, stock_dir)
+
+# Wrap the model to include residuals
 class ResidualWrap(tf.keras.Model):
   def __init__(self, model):
     super().__init__()
@@ -45,7 +83,7 @@ class ResidualWrap(tf.keras.Model):
     delta = self.model(inputs, *args, **kwargs)
     return inputs + delta
   
-# Train the model
+# Function to train the model
 def train_model(ticker):
     print("Training model...")
     dataset = get_historical_data(ticker)
@@ -89,64 +127,11 @@ def train_model(ticker):
 
     regressor.fit(x_train, y_train, epochs=10, batch_size=32)
 
-
     # Save the model
     model_dir = get_model_dir(ticker)
     regressor.save(model_dir)
 
-# Update the model with yesterday's price
-def update_model(ticker, last_date):
-    print("Updating model...")
-    # Load the saved model
-    model_dir = get_model_dir(ticker)
-    regressor = load_model(model_dir)
-
-    # Get updated data
-    new_data = get_updated_stock_data(ticker, last_date)
-
-    print(new_data.tail())
-    new_data = process_stock_data(new_data)
-    new_data.set_index("Date", inplace=True)
-
-    stock_dir = get_data_dir(ticker)
-    dataset = pd.read_csv(stock_dir, index_col=0)
-
-    # add new data to the dataset
-    dataset_total = pd.concat((dataset, new_data), axis = 0)
-    # save the updated dataset
-    save_locally(dataset_total, stock_dir)
-
-    # extract the closing price column
-    dataset_total = dataset_total.loc[:, ['Close']] 
-    
-    sc = MinMaxScaler(feature_range = (0,1))
-    sc = sc.fit(dataset_total)
-
-    training_scaled = sc.transform(dataset_total)
-    pickle.dump(sc, open("scaler.pkl", "wb"))
-    x_train =[]
-    y_train =[]
-    print(new_data.shape[0])
-    for i in range(new_data.shape[0]):
-        if i == 0:
-            x_train.append(training_scaled[-ROLLOING_WINDOW:, 0])
-            y_train.append(training_scaled[-1, 0])
-        else:
-            x_train.append(training_scaled[-i-ROLLOING_WINDOW:-i, 0])
-            y_train.append(training_scaled[-i-1, 0])
-    x_train.reverse()
-
-    y_train.reverse()
-
-    x_train, y_train = np.array(x_train),np.array(y_train)
-    x_train = np.reshape(x_train,(x_train.shape[0],x_train.shape[1],1))
-
-    # Train the model
-    regressor.fit(x_train, y_train, epochs = 1, batch_size = 1)
-    # Save the updated model
-    model_dir = get_model_dir(ticker)
-    regressor.save(model_dir, save_format="tf")
-
+# Function to make predictions using the trained model
 def predict(ticker):
     print("Predicting...")
     # Load the saved model
@@ -183,36 +168,62 @@ def predict(ticker):
     predictions.set_index('Date', inplace=True)
     return predictions
 
-def plot_prediction_vs_real(real_stock_prices, predictions):
-    plt.plot(real_stock_prices, color = 'red', label = 'Real Apple Stock Price')
-    plt.plot(predictions, color = 'blue', label = 'Predicted Apple Stock Price')
-    plt.title('Apple Stock Price Prediction')
-    plt.xlabel('Time')
-    plt.ylabel('Apple Stock Price')
-    # x axis should have dates spaced out in months
-    plt.xticks(np.arange(0, len(real_stock_prices), 30), real_stock_prices.index[::30])
-    plt.legend()
-    plt.show()
+# Function to plot the predicted stock prices against the real stock prices
+def plot_prediction_vs_real(ticker, real_stock_prices, predictions):
+    # Ensure the index is of datetime type
+    real_stock_prices.index = pd.to_datetime(real_stock_prices.index)
+    predictions.index = pd.to_datetime(predictions.index)
 
-    # accuracy = accuracy_score(real_stock_prices, predictions)
-    # f1 = f1_score(real_stock_prices, predictions)
-''
+    fig, ax = plt.subplots()
+
+    ax.plot(real_stock_prices, color='red', label='Real Apple Stock Price')
+    ax.plot(predictions, color='blue', label='Predicted Apple Stock Price')
+    ax.set_title(f'{ticker} Stock Price Prediction')
+    ax.set_xlabel('Time')
+    ax.set_ylabel(f'{ticker} Stock Price')
+
+    # Set the x-axis to display one label per month
+    ax.xaxis.set_major_locator(mdates.MonthLocator())
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
+
+    # Rotate the x-axis labels for better readability
+    plt.setp(ax.xaxis.get_majorticklabels(), rotation=45, ha='right')
+
+    ax.legend()
+    plt.savefig(os.path.join(figures_dir, ticker + "_.png"))
+
+    accuracy = accuracy_score(real_stock_prices, predictions)
+    f1 = f1_score(real_stock_prices, predictions)
+    print(f"Accuracy: {accuracy}")
+    print(f"F1 score: {f1}")
+
 def plot_prediction(ticker, predictions):
     stock_dir = get_data_dir(ticker)
     dataset = pd.read_csv(stock_dir, index_col=0)
-    plt.plot(dataset.tail(60).index, dataset.tail(60)['Close'], color = 'red', label = f'Historical {ticker} Price')
-    plt.plot(predictions.index, predictions['Close'], color = 'blue', label = f'Predicted {ticker} Price')
-    plt.title(f'{ticker} Stock Price Prediction')
-    plt.xlabel('Time')
-    plt.ylabel(f'{ticker} Stock Price')
-    # x axis should have dates in months
     
-    plt.legend()
+    # Convert the index to datetime objects
+    dataset.index = pd.to_datetime(dataset.index)
+    predictions.index = pd.to_datetime(predictions.index)
+
+    fig, ax = plt.subplots()
+    
+    ax.plot(dataset.tail(60).index, dataset.tail(60)['Close'], color='red', label=f'Historical {ticker} Price')
+    ax.plot(predictions.index, predictions['Close'], color='blue', label=f'Predicted {ticker} Price')
+    ax.set_title(f'{ticker} Stock Price Prediction')
+    ax.set_xlabel('Time')
+    ax.set_ylabel(f'{ticker} Stock Price')
+    
+    # Set the x-axis to display one label per month
+    ax.xaxis.set_major_locator(mdates.MonthLocator())
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
+    
+    # Rotate the x-axis labels for better readability
+    plt.setp(ax.xaxis.get_majorticklabels(), rotation=45, ha='right')
+    
+    ax.legend()
     plt.savefig(os.path.join(figures_dir, ticker + "_prediction.png"))
-    plt.show()
 
 
-#check for stock_predictor.h5
 def get_prediction(ticker, days):
     model_dir = get_model_dir(ticker)
     stock_dir = get_data_dir(ticker)
@@ -223,9 +234,12 @@ def get_prediction(ticker, days):
     last_date = data.index[-1]
     last_date = datetime.strptime(last_date, "%Y-%m-%d")
 
-    # if difference between dates is more than 1 month, update the model
-    if (datetime.today() - last_date).days > 30:
-        update_model(ticker, last_date)
+    last_market_date = most_recent_market_date(datetime.today())
+    last_market_date= datetime.strptime(last_market_date, "%Y-%m-%d")
+
+    if last_market_date != last_date:
+        update_data(ticker, last_date)
+    
     prediction = predict(ticker)
 
     try:
@@ -238,7 +252,9 @@ def get_prediction(ticker, days):
     return adjusted_prediction
 
 
+tkr = 'AAPL'
+days = 30
 
-out = get_prediction('QQQ', 30)
+out = get_prediction(tkr, days)
 print(out)
-plot_prediction('QQQ', out)
+plot_prediction(tkr, out)
