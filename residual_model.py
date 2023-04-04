@@ -252,9 +252,9 @@ def get_prediction(ticker, days):
     return adjusted_prediction
 
 
-tkr = 'AAPL'
-days = 30
+# tkr = 'AAPL'
+# days = 30
 
-out = get_prediction(tkr, days)
-print(out)
-plot_prediction(tkr, out)
+# out = get_prediction(tkr, days)
+# print(out)
+# plot_prediction(tkr, out)

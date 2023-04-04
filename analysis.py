@@ -3,7 +3,7 @@ import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
 import matplotlib.pyplot as plt
 import os
 from scipy.optimize import minimize
-from rnn_model import get_prediction
+from residual_model import get_prediction
 
 
 # Price in day D
@@ -19,17 +19,20 @@ def get_return(ticker, days):
 
 # Daily return over the next D days
 def get_daily_returns(ticker, days):
-    prediction = get_prediction(ticker, days)['Close'].tolist()
+    out = get_prediction(ticker, days)
+    values = out['Close'].tolist()
     daily_returns = []
     for i in range(days-1):
-        daily_return = prediction[i+1] - prediction[i]
+        daily_return = values[i+1] - values[i]
         daily_returns.append(daily_return)
 
-    return daily_returns
+    out = out.tail(days-1)
+    out['Close'] = out['Close'].replace(values[1:], daily_returns)
+    return out
 
 # Average daily return over the next D days
 def get_avg_daily_return(ticker, days):
-    daily_returns = get_daily_returns(ticker, days)
+    daily_returns = get_daily_returns(ticker, days)['Close'].tolist()
     return np.mean(daily_returns)
 
 # Volatility over the next D days
@@ -47,13 +50,21 @@ def get_sharpe(ticker, days, rfr):
 
 # Get portfolio returns over the next D days
 def get_portfolio_returns(ticker_list, days):
+
     returns_list = []
     for ticker in ticker_list:
-        returns_list.append(get_daily_returns(ticker, days))
+        daily_returns = get_daily_returns(ticker, days)
+        values = daily_returns['Close'].tolist()
+        returns_list.append(values)
+        
+    dates = daily_returns.index.values
 
     combined_returns = np.array(returns_list).T
+    combined_returns_df = pd.DataFrame(combined_returns, columns=ticker_list)
+    combined_returns_df['Date'] = dates
+    combined_returns_df.set_index('Date', inplace=True)
 
-    return combined_returns
+    return combined_returns, combined_returns_df
 
 # Optimises portfolio of tickers for minimum variance
 def min_var_portfolio(combined_returns):
