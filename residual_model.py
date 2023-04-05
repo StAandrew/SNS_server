@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from sklearn.preprocessing import MinMaxScaler
 from keras.models import Sequential, load_model
 from keras.layers import Dense, LSTM, Dropout
-from SNS_server.data_acquisition import get_historical_data, get_updated_stock_data, process_stock_data, save_locally
+from data_acquisition import get_historical_data, get_updated_stock_data, process_stock_data, save_locally
 import os
 import pickle
 import tensorflow as tf
