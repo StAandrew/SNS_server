@@ -176,11 +176,11 @@ def plot_prediction_vs_real(ticker, real_stock_prices, predictions):
 
     fig, ax = plt.subplots()
 
-    ax.plot(real_stock_prices, color='red', label='Real Apple Stock Price')
-    ax.plot(predictions, color='blue', label='Predicted Apple Stock Price')
-    ax.set_title(f'{ticker} Stock Price Prediction')
+    ax.plot(real_stock_prices, color='red', label=f'Real {ticker} Price')
+    ax.plot(predictions, color='blue', label=f'Predicted {ticker} Price')
+    ax.set_title(f'{ticker} Price Prediction')
     ax.set_xlabel('Time')
-    ax.set_ylabel(f'{ticker} Stock Price')
+    ax.set_ylabel(f'{ticker} Price')
 
     # Set the x-axis to display one label per month
     ax.xaxis.set_major_locator(mdates.MonthLocator())
@@ -209,7 +209,7 @@ def plot_prediction(ticker, predictions):
     
     ax.plot(dataset.tail(60).index, dataset.tail(60)['Close'], color='red', label=f'Historical {ticker} Price')
     ax.plot(predictions.index, predictions['Close'], color='blue', label=f'Predicted {ticker} Price')
-    ax.set_title(f'{ticker} Stock Price Prediction')
+    ax.set_title(f'{ticker} Price Prediction')
     ax.set_xlabel('Time')
     ax.set_ylabel(f'{ticker} Stock Price')
     

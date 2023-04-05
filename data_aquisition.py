@@ -8,21 +8,21 @@ from config import dataset_dir
 def get_historical_data(ticker):
 
     """
-    Retrieves historical stock data for Apple Inc. from Yahoo Finance.
+    Retrieves historical stock data from Yahoo Finance.
 
     Args:
         None
 
     Returns:
         pandas.DataFrame:
-            A DataFrame containing the historical stock data for Apple Inc.
+            A DataFrame containing the historical stock data.
 
     """
     print("Fetching historical data...")
-    # create a Ticker object for Apple Inc.
+    # create a Ticker object
     stock = yf.Ticker(ticker)
 
-    # get the historical stock data for Apple Inc from 5 years ago until today.
+    # get the historical stock data from 5 years ago until today.
     stock_data = stock.history(period="5y", interval="1d")
 
     # reset the index of the DataFrame
@@ -34,14 +34,14 @@ def get_historical_data(ticker):
 
 def get_updated_stock_data(ticker, begin_date):
     """
-    Retrieves the stock data for Apple Inc. from the previous trading day.
+    Retrieves the stock data from the previous trading day.
 
     Args:
         None
 
     Returns:
         pandas.DataFrame:
-            A DataFrame containing the stock data for Apple Inc. from the previous
+            A DataFrame containing the stock data from the previous
             trading day.
 
     """
@@ -64,15 +64,15 @@ def get_updated_stock_data(ticker, begin_date):
 
 def process_stock_data(stock):
     """
-    Processes Apple stock data by removing unnecessary columns, calculating daily returns, and
+    Processes stock data by removing unnecessary columns, calculating daily returns, and
     converting the datetime column to just the date. Also draws a heatmap correlation matrix
-    between Apple stock features and saves the image.
+    between stock features and saves the image.
 
     Args:
-        apple: A Pandas DataFrame containing Apple stock data.
+        stock: A Pandas DataFrame containing stock data.
 
     Returns:
-        A Pandas DataFrame containing the processed Apple stock data.
+        A Pandas DataFrame containing the processed stock data.
 
     Example Usage:
         apple_data = pd.read_csv('apple_stock_data.csv')
