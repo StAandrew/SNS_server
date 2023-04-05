@@ -36,7 +36,7 @@ def get_portfolio_returns(stocks, days):
     return returns
 
 def min_var_portfolio(stocks, days):
-    combined_returns = analysis.get_portfolio_returns(stocks, days)
+    combined_returns, combined_returns_df = analysis.get_portfolio_returns(stocks, days)
     opt_weights, min_var = analysis.min_var_portfolio(combined_returns)
     
     #Combine the two variables to a single list (simplifies communication between client and server)
@@ -46,7 +46,7 @@ def min_var_portfolio(stocks, days):
     return data_out
 
 def max_sharpe_portfolio(stocks, days, rfr):
-    combined_returns = analysis.get_portfolio_returns(stocks, days)
+    combined_returns, combined_returns_df = analysis.get_portfolio_returns(stocks, days)
     opt_weights, max_sharpe = analysis.max_sharpe_portfolio(combined_returns, rfr)
 
     #Combine the two variables to a single list (simplifies communication between client and server)
