@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from sklearn.preprocessing import MinMaxScaler
 from keras.models import Sequential, load_model
 from keras.layers import Dense, LSTM, Dropout
-from data_aquisition import get_historical_data, get_updated_stock_data, process_stock_data, save_locally
+from data_acquisition import get_historical_data, get_updated_stock_data, process_stock_data, save_locally
 import os
 import pickle
 import tensorflow as tf
@@ -211,7 +211,7 @@ def plot_prediction(ticker, predictions):
     ax.plot(predictions.index, predictions['Close'], color='blue', label=f'Predicted {ticker} Price')
     ax.set_title(f'{ticker} Price Prediction')
     ax.set_xlabel('Time')
-    ax.set_ylabel(f'{ticker} Stock Price')
+    ax.set_ylabel(f'{ticker} Price')
     
     # Set the x-axis to display one label per month
     ax.xaxis.set_major_locator(mdates.MonthLocator())
@@ -252,7 +252,7 @@ def get_prediction(ticker, days):
     return adjusted_prediction
 
 
-# tkr = 'AAPL'
+# tkr = 'NVDA'
 # days = 30
 
 # out = get_prediction(tkr, days)
