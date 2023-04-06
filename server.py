@@ -12,8 +12,8 @@ PORT = 65433
 ### CALL ANALYSIS.PY FUNCIONS ###
 
 def get_price(stock_name, day):
-    price = analysis.get_price(stock_name, day)
-    return price
+    predictions = analysis.get_price(stock_name, day)
+    return predictions
 
 def get_daily_returns(stock_name, days):
     returns = analysis.get_daily_returns(stock_name, days)
@@ -32,8 +32,8 @@ def get_sharpe(stock_name, days, rfr):
     return sharpe
 
 def get_portfolio_returns(stocks, days):
-    returns = analysis.get_portfolio_returns(stocks, days)
-    return returns
+    returns, returns_df = analysis.get_portfolio_returns(stocks, days)
+    return returns_df
 
 def min_var_portfolio(stocks, days):
     combined_returns, combined_returns_df = analysis.get_portfolio_returns(stocks, days)
@@ -61,13 +61,14 @@ def max_sharpe_portfolio(stocks, days, rfr):
 def client_connection_thread(conn, port, lock):
     continue_loop = True
     while continue_loop:
-        data = conn.recv(1024) #Recieve pickle object from client
+        data = conn.recv(4096) #Recieve pickle object from client
         if data:
             decoded = pickle.loads(data) #'unpickle' data
             print("Received:", decoded)
             choice = str(decoded.pop()) #Pop last element (the chocice based on the tag predicted by the NLP algorithm on the client side)
             days = int(decoded.pop()) #Pop the 2nd last element (the number of days ahead to predict)
             stock_name = decoded[0] #This is only used in the functions involving a single stock, so will always be the first element in the list
+            predictions = []
             if choice == '1': #Predict price of stock
                 data_out = get_price(stock_name, days)
 
@@ -101,6 +102,8 @@ def client_connection_thread(conn, port, lock):
 
         data_pickle = pickle.dumps(data_out) #Convert list to pickle object
         conn.send(data_pickle)  # send data back to client
+        
+        
     conn.close()
 
 

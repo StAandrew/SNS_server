@@ -8,8 +8,8 @@ from residual_model import get_prediction
 
 # Price in day D
 def get_price(ticker, day):
-    prediction = get_prediction(ticker, day)['Close'].tolist()
-    return prediction[day-1]
+    prediction = get_prediction(ticker, day)
+    return prediction
 
 # Return over the next D days
 def get_return(ticker, days):
