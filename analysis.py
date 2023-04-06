@@ -260,11 +260,14 @@ def max_sharpe_portfolio(combined_returns, rfr):
 
 
 
-# # tkr = 'NVDA'
-# # tkr_list = ['AAPL', 'AMZN', 'NVDA', 'MSFT']
-# # days = 30
+# tkr = 'NVDA'
+# tkr_list = ['AAPL', 'AMZN', 'NVDA', 'MSFT']
+# days = 30
 
-# # out, out_df = get_portfolio_returns(tkr_list, days)
+# out, out_df = get_portfolio_returns(tkr_list, days)
+# print(out_df)
+# plot_daily_portfolio_returns(tkr_list, out_df)
+
 # # print(out)
 # # out2, var = min_var_portfolio(out)
 # # out3, sharpe = max_sharpe_portfolio(out, 0.02)
