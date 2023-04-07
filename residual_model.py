@@ -16,12 +16,18 @@ import tensorflow as tf
 from pandas_market_calendars import get_calendar
 from datetime import datetime
 import matplotlib.dates as mdates
-from sklearn.metrics import accuracy_score, f1_score, mean_squared_error
+from sklearn.metrics import (
+    accuracy_score,
+    f1_score,
+    mean_squared_error,
+    mean_absolute_percentage_error,
+    r2_score,
+)
 from config import figures_dir, dataset_dir, models_dir
 
 # Define constants
 ROLLING_WINDOW = 30
-EVALUATE = False
+EVALUATE = True
 
 
 # Helper functions to get paths for dataset and model
@@ -233,14 +239,20 @@ def plot_prediction_vs_real(ticker, real_stock_prices, predictions):
     # f1 = f1_score(real_stock_prices, predictions)
     # print(f"Accuracy: {accuracy}")
     # print(f"F1 score: {f1}")
-    mse_dir = os.path.join(figures_dir, "mse_data.csv")
-    if not os.path.exists(mse_dir):
-        with open(mse_dir, "w") as fd:
-            fd.write("days,ticker,mse\n")
+    metrics_file = os.path.join(figures_dir, "metrics_file.csv")
+    if not os.path.exists(metrics_file):
+        with open(metrics_file, "w") as fd:
+            fd.write("days,ticker,mse,mape,r2_score\n")
     mse = mean_squared_error(real_stock_prices, predictions)
+    mape = mean_absolute_percentage_error(real_stock_prices, predictions)
+    r2 = r2_score(real_stock_prices, predictions)
     friendly_mse = "{:.2f}".format(mse)
-    csv_row = f"{ROLLING_WINDOW},{ticker},{friendly_mse}\n"
-    with open(mse_dir, "a") as fd:
+    friendly_mape = "{:.2f}".format(mape)
+    friendly_r2 = "{:.2f}".format(r2)
+    csv_row = (
+        f"{ROLLING_WINDOW},{ticker},{friendly_mse},{friendly_mape},{friendly_r2}\n"
+    )
+    with open(metrics_file, "a") as fd:
         fd.write(csv_row)
     # font = {'family': 'serif',
     #     'color':  'darkred',
@@ -362,3 +374,15 @@ if __name__ == "__main__":
     main("AMZN")
     main("TSLA")
     main("NFLX")
+    main("NVDA")
+    main("PYPL")
+    main("GME")
+    main("QQQ")
+    main("KO")
+    main("ORCL")
+    main("IBM")
+    main("MCD")
+    main("NKE")
+    main("DIS")
+    main("ADBE")
+    main("UPS")

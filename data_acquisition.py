@@ -6,7 +6,6 @@ from config import dataset_dir
 
 
 def get_historical_data(ticker):
-
     """
     Retrieves historical stock data from Yahoo Finance.
 
